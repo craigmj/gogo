@@ -116,7 +116,7 @@ func Migrate(db *sql.DB, migrations []Migration) (err error) {
 		if nil!=err {
 			return onError(tx, version, fmt.Errorf("Updating version table for version %v: %s", version, err.Error()))
 		}
-		err = Tx.Commit()
+		err = tx.Commit()
 		if nil!=err {
 			return onError(tx, version, fmt.Errorf("Committing transaction for migration %v: %v", version+1, err.Error()))
 		}
