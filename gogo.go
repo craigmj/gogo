@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"database/sql"
 	"strconv"
-	"strings"
 	"reflect"
 )
 
@@ -81,7 +80,7 @@ func Migrate(db *sql.DB, migrations []Migration) (err error) {
 	
 	// safeExec applies the migration, and returns an error if the migration returns
 	// an error, or if the migration panics
-	safeExec := func(Tx *sql.Tx, migration Migration) (err error) {
+	safeExec := func(tx *sql.Tx, migration Migration) (err error) {
 		defer func() {
 			if e := recover(); e!=nil {
 				ok := true
@@ -91,7 +90,7 @@ func Migrate(db *sql.DB, migrations []Migration) (err error) {
 				}
 			}
 		}()		
-		migration.Apply(&Tx{Tx})
+		migration.Apply(&Tx{tx})
 		return nil
 	}
 	
@@ -159,7 +158,7 @@ func Rollback(db *sql.DB, destinationVersionString string, migrations []Migratio
 	fmt.Println("Rollback to version ", destinationVersion)
 	// safeRollback rollsback the migration, and returns an error if the migration rollback returns
 	// an error, or if the migration rollback panics
-	safeRollback := func(Tx *sql.Tx, migration Migration) (err error) {
+	safeRollback := func(tx *sql.Tx, migration Migration) (err error) {
 		defer func() {
 			if e := recover(); e!=nil {
 				ok := true
@@ -169,7 +168,7 @@ func Rollback(db *sql.DB, destinationVersionString string, migrations []Migratio
 				}
 			}
 		}()		
-		migration.Rollback(&Tx{Tx})
+		migration.Rollback(&Tx{tx})
 		return nil
 	}
 
