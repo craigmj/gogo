@@ -80,7 +80,7 @@ func Migrate(db *sql.DB, migrations []Migration) (err error) {
 	
 	// safeExec applies the migration, and returns an error if the migration returns
 	// an error, or if the migration panics
-	safeExec := func(tx *sql.Tx, f func(*Tx) error) (err error) {
+	safeExec := func(tx *sql.Tx, f func(*Tx)) (err error) {
 		defer func() {
 			if e := recover(); e!=nil {
 				ok := true
@@ -104,11 +104,11 @@ func Migrate(db *sql.DB, migrations []Migration) (err error) {
 		return fmt.Errorf("Migrating to version %v: %v", version+1, err.Error()) 
 	}
 	for version < len(migrations) {
-		Tx, err := db.Begin()
+		tx, err := db.Begin()
 		if nil!=err {
 			return fmt.Errorf("Starting transaction: %v", err.Error())
 		}
-		if err := safeExec(Tx, migrations[version].Apply); nil!=err {
+		if err := safeExec(tx, migrations[version].Apply); nil!=err {
 			return onError(tx, version, err)
 		}
 		version++
