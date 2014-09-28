@@ -98,7 +98,7 @@ func Migrate(db *sql.DB, migrations []Migration) (err error) {
 		if err := safeExec(tx, migrations[ver].Rollback); nil!=err {
 			fmt.Println("ERROR during migration.Rollback: ", err)
 		}
-		if err = tx.Rollback(); nil!=err {
+		if err := tx.Rollback(); nil!=err {
 			fmt.Println("ERROR during transation rollback: ", err)
 		}
 		return fmt.Errorf("Migrating to version %v: %v", version+1, err.Error()) 
