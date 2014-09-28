@@ -11,20 +11,6 @@ import (
 var db *sql.DB
 var gogoTable = "_gogo_migrations"
 	
-// Gogo is a convenience wrapper around a Migration array with an Apply and a Rollback
-// method.
-type Gogo []Migration
-
-// Apply up to the latest migration.
-func (g *Gogo) Apply(db *sql.DB) error {
-	return Apply(db, *g)
-}
-
-// Rollback to the given version.
-func (g *Gogo) Rollback(version string, db *sql.DB) error {
-	return Rollback(version, db, *g)
-}
-
 // A Migration is a one-way advancement of the database.
 type Migration struct  {
 	Apply func(*Tx)
@@ -76,7 +62,7 @@ func Version(db *sql.DB) (int, error) {
 }
 
 // Apply migrates the database to the latest migration version
-func Apply(db *sql.DB, migrations []Migration) (err error) {
+func Migrate(db *sql.DB, migrations []Migration) (err error) {
 	_, err = db.Exec(`set autocommit=0`)
 	if nil!=err {
 		return err
@@ -137,7 +123,7 @@ func Apply(db *sql.DB, migrations []Migration) (err error) {
 
 // Rollback rolls the database back to the destination version. Versions are 
 // numbered from 1, so a Rollback to 0 would rollback all migrations.
-func Rollback(destinationVersionString string, db *sql.DB, migrations []Migration) (err error) {
+func Rollback(db *sql.DB, destinationVersionString string, migrations []Migration) (err error) {
 	if ""==destinationVersionString {
 		return nil
 	}
