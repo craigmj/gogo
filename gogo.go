@@ -80,7 +80,7 @@ func Migrate(db *sql.DB, migrations []Migration) (err error) {
 	
 	// safeExec applies the migration, and returns an error if the migration returns
 	// an error, or if the migration panics
-	safeExec := func(tx *sql.Tx, migration Migration) (err error) {
+	safeExec := func(tx *sql.Tx, f func(*Tx) error) (err error) {
 		defer func() {
 			if e := recover(); e!=nil {
 				ok := true
@@ -90,31 +90,35 @@ func Migrate(db *sql.DB, migrations []Migration) (err error) {
 				}
 			}
 		}()		
-		migration.Apply(&Tx{tx})
+		f(&Tx{tx})
 		return nil
 	}
 	
+	onError := func(tx *sql.Tx, ver int, err error) error {
+		if err := safeExec(tx, migrations[ver].Rollback); nil!=err {
+			fmt.Println("ERROR during migration.Rollback: ", err)
+		}
+		if err = tx.Rollback(); nil!=err {
+			fmt.Println("ERROR during transation rollback: ", err)
+		}
+		return fmt.Errorf("Migrating to version %v: %v", version+1, err.Error()) 
+	}
 	for version < len(migrations) {
 		Tx, err := db.Begin()
 		if nil!=err {
 			return fmt.Errorf("Starting transaction: %v", err.Error())
 		}
-		if err := safeExec(Tx, migrations[version]); nil!=err {
-			if err := Tx.Rollback(); nil!=err {
-				fmt.Printf("ERROR DURING ROLLBACK: %v\n", err.Error())
-			}			
-			return fmt.Errorf("Migrating to version %v: %v", version+1, err.Error()) 
+		if err := safeExec(Tx, migrations[version].Apply); nil!=err {
+			return onError(tx, version, err)
 		}
 		version++
 		_, err = Tx.Exec(`update ` + gogoTable + ` set version = ?, migration_date=now()`, version)
 		if nil!=err {
-			Tx.Rollback()
-			return fmt.Errorf("Updating version to %v: %v", version+1, err.Error())
+			return onError(tx, version, fmt.Errorf("Updating version table for version %v: %s", version, err.Error()))
 		}
 		err = Tx.Commit()
 		if nil!=err {
-			Tx.Rollback()
-			return fmt.Errorf("Committing transaction for migration %v: %v", version+1, err.Error())
+			return onError(tx, version, fmt.Errorf("Committing transaction for migration %v: %v", version+1, err.Error()))
 		}
 	}
 	return nil
