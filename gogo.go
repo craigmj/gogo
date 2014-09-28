@@ -112,7 +112,7 @@ func Migrate(db *sql.DB, migrations []Migration) (err error) {
 			return onError(tx, version, err)
 		}
 		version++
-		_, err = Tx.Exec(`update ` + gogoTable + ` set version = ?, migration_date=now()`, version)
+		_, err = tx.Exec(`update ` + gogoTable + ` set version = ?, migration_date=now()`, version)
 		if nil!=err {
 			return onError(tx, version, fmt.Errorf("Updating version table for version %v: %s", version, err.Error()))
 		}
