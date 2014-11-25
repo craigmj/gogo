@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"database/sql"
 	"strconv"
+	"time"
 	"reflect"
 )
 
@@ -32,11 +33,12 @@ func Version(db *sql.DB) (int, error) {
 	res := db.QueryRow(`show tables like '` + gogoTable + `'`)
 	err := res.Scan(&tblname)
 	if nil!=err && sql.ErrNoRows!=err{
-		return -1, fmt.Errorf("Executing `show tables like '%v'`: %v", gogoTable, err.Error())
+		//return -1, fmt.Errorf("Executing `show tables like '%v'`: %v", gogoTable, err.Error())
+		err = sql.ErrNoRows
 	}
 	if sql.ErrNoRows == err {
 		_, err = db.Exec(fmt.Sprintf(`
-			create table %s
+			create table if not exists %s
 			(
 				version int not null default 0,
 				migration_date datetime not null, 
@@ -45,32 +47,30 @@ func Version(db *sql.DB) (int, error) {
 		if nil!=err {
 			return -1, fmt.Errorf("Creating gogomigration versioning table %v: %v", gogoTable, err.Error())
 		}
-		_, err = db.Exec(fmt.Sprintf(`insert into %s(version, migration_date) values(0, now())`, gogoTable))
+
+		version = 0
+	}
+	res = db.QueryRow(`select version from ` + gogoTable)
+	err = res.Scan(&version)
+	if sql.ErrNoRows == err {
+		_, err = db.Exec(fmt.Sprintf(`insert into %s(version, migration_date) values(0, ?)`, gogoTable), time.Now())
 		if nil!=err {
 			return -1, fmt.Errorf("Inserting 0 version into %v: %v", gogoTable, err.Error())
 		}
-		version = 0
-	} else {		
-		res := db.QueryRow(`select version from ` + gogoTable)
-		err = res.Scan(&version)
-		if nil!=err {
-			return -1, fmt.Errorf("Scanning version from %v: %v", gogoTable, err.Error())
-		}
+		return version, nil
 	}
+	if nil!=err {
+		return -1, fmt.Errorf("Scanning version from %v: %v", gogoTable, err.Error())
+	}
+
 	return version, nil
 }
 
 // Apply migrates the database to the latest migration version
 func Migrate(db *sql.DB, migrations []Migration) (err error) {
-	_, err = db.Exec(`set autocommit=0`)
-	if nil!=err {
-		return err
-	}
+	db.Exec(`set autocommit=0`)
 	defer func() {
-		_, e := db.Exec(`set autocommit=1`)
-		if nil==err {
-			err = e
-		}
+		db.Exec(`set autocommit=1`)		
 	}()
 	
 	version, err := Version(db)
@@ -112,7 +112,7 @@ func Migrate(db *sql.DB, migrations []Migration) (err error) {
 			return onError(tx, version, err)
 		}
 		version++
-		_, err = tx.Exec(`update ` + gogoTable + ` set version = ?, migration_date=now()`, version)
+		_, err = tx.Exec(`update ` + gogoTable + ` set version = ?, migration_date=?`, version, time.Now())
 		if nil!=err {
 			return onError(tx, version, fmt.Errorf("Updating version table for version %v: %s", version, err.Error()))
 		}
@@ -135,15 +135,9 @@ func Rollback(db *sql.DB, destinationVersionString string, migrations []Migratio
 		return err
 	}
 
-	_, err = db.Exec(`set autocommit=0`)
-	if nil!=err {
-		return err
-	}
+	db.Exec(`set autocommit=0`)
 	defer func() {
-		_, e := db.Exec(`set autocommit=1`)
-		if nil==err {
-			err = e
-		}
+		db.Exec(`set autocommit=1`)
 	}()
 
 	version, err := Version(db)
@@ -191,9 +185,9 @@ func Rollback(db *sql.DB, destinationVersionString string, migrations []Migratio
 			Tx.Rollback()
 			return fmt.Errorf("Rollingback version %v: %v", version+1, err.Error()) 
 		}
-		_, err = Tx.Exec(`update ` + gogoTable + ` set version = ?, migration_date=now()`, version)
+		_, err = Tx.Exec(`update ` + gogoTable + ` set version = ?, migration_date=?`, version, time.Now())
 		if nil!=err {
-			Tx.Rollback()
+			Tx.Rollback()			
 			return fmt.Errorf("Updating version to %v: %v", version+1, err.Error())
 		}
 		err = Tx.Commit()
