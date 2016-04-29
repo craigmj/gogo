@@ -164,6 +164,9 @@ func Rollback(db *sql.DB, destinationVersionString string, migrations []Migratio
 	}
 
 	if 1 > version {
+		if version == destinationVersion {
+			return nil
+		}
 		return fmt.Errorf("Cannot rollback: currently at version %v", version)
 	}
 
