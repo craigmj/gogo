@@ -2,9 +2,9 @@ package gogo
 
 import (
 	"database/sql"
-	"strings"
-
+	"fmt"
 	"log"
+	"strings"
 )
 
 // Tx is a very lightweight wrapper around the standard SQL Tx.
@@ -13,13 +13,15 @@ type Tx struct {
 	*sql.Tx
 }
 
-// Execp functions like the standard Tx Exec, except that, if it encounters an
+// MustExec functions like the standard Tx Exec, except that, if it encounters an
 // error, it panics. This panic is caught by the gogo framework, and will
 // automatically rollback. So Execp is a shortcut for query execution with
 // error catching
 func (db *Tx) MustExec(sql string, params ...interface{}) {
 	_, err := db.Tx.Exec(sql, params...)
-	if nil != err {
+	if nil != err {	
+		err = fmt.Errorf(`Error on SQL %s, args %v: %w`, sql, params, err)
+		log.Printf(`ERROR on %s w. params %v: %s`, )
 		panic(err)
 	}
 }
