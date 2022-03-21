@@ -13,15 +13,25 @@ type Tx struct {
 	*sql.Tx
 }
 
+func (db *Tx) Exec(sql string, params ...interface{}) (sql.Result, error) {
+	res, err := db.Tx.Exec(sql, params...)
+	if nil!=err {
+		err = fmt.Errorf("%w: %s [%v]", err, sql, params)
+		log.Printf("ERROR: %s", err.Error())
+	}
+	return res, err
+}
+
 // MustExec functions like the standard Tx Exec, except that, if it encounters an
 // error, it panics. This panic is caught by the gogo framework, and will
 // automatically rollback. So Execp is a shortcut for query execution with
 // error catching
 func (db *Tx) MustExec(sql string, params ...interface{}) {
 	_, err := db.Tx.Exec(sql, params...)
+	log.Printf("MustExec: %s [%v]", sql, params)
 	if nil != err {	
-		err = fmt.Errorf(`Error on SQL %s, args %v: %w`, sql, params, err)
-		log.Printf(`ERROR on %s w. params %v: %s`, )
+		err = fmt.Errorf("%w: %s [%v]", err, sql, params)
+		log.Printf("ERROR: %s", err.Error())
 		panic(err)
 	}
 }
@@ -53,9 +63,10 @@ func (db *Tx) ExecAll(sql string) error {
 		if 0 == len(s) {
 			continue
 		}
-		log.Printf("Executing '%s'", s)
+		log.Printf("Exec: %s", s)
 		if _, err := db.Tx.Exec(s); nil != err {
-			log.Printf("ERROR on %s: %s", s, err.Error())
+			err = fmt.Errorf("%w: %s", err, s)
+			log.Printf("ERROR: %s", err.Error())
 			return err
 		}
 	}
@@ -67,6 +78,8 @@ func (db *Tx) ExecAll(sql string) error {
 func (db *Tx) MustQuery(sql string, params ...interface{}) *sql.Rows {
 	rows, err := db.Tx.Query(sql, params...)
 	if nil != err {
+		err = fmt.Errorf("%w: %s [%v]", err, sql, params)
+		log.Printf("ERROR: %s", err.Error())
 		panic(err)
 	}
 	return rows
@@ -77,6 +90,8 @@ func (db *Tx) MustQuery(sql string, params ...interface{}) *sql.Rows {
 func (db *Tx) MustPrepare(sql string) *sql.Stmt {
 	qry, err := db.Tx.Prepare(sql)
 	if nil != err {
+		err = fmt.Errorf("%w: %s", err, sql)
+		log.Printf("ERROR: %s", err.Error())
 		panic(err)
 	}
 	return qry
