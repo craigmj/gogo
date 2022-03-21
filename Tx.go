@@ -3,7 +3,6 @@ package gogo
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"strings"
 )
 
@@ -17,7 +16,7 @@ func (db *Tx) Exec(sql string, params ...interface{}) (sql.Result, error) {
 	res, err := db.Tx.Exec(sql, params...)
 	if nil!=err {
 		err = fmt.Errorf("%w: %s [%v]", err, sql, params)
-		log.Printf("ERROR: %s", err.Error())
+		PrintError("ERROR: %s", err.Error())
 	}
 	return res, err
 }
@@ -28,10 +27,10 @@ func (db *Tx) Exec(sql string, params ...interface{}) (sql.Result, error) {
 // error catching
 func (db *Tx) MustExec(sql string, params ...interface{}) {
 	_, err := db.Tx.Exec(sql, params...)
-	log.Printf("MustExec: %s [%v]", sql, params)
+	PrintError("MustExec: %s [%v]", sql, params)
 	if nil != err {	
 		err = fmt.Errorf("%w: %s [%v]", err, sql, params)
-		log.Printf("ERROR: %s", err.Error())
+		PrintError("ERROR: %s", err.Error())
 		panic(err)
 	}
 }
@@ -63,10 +62,10 @@ func (db *Tx) ExecAll(sql string) error {
 		if 0 == len(s) {
 			continue
 		}
-		log.Printf("Exec: %s", s)
+		PrintError("Exec: %s", s)
 		if _, err := db.Tx.Exec(s); nil != err {
 			err = fmt.Errorf("%w: %s", err, s)
-			log.Printf("ERROR: %s", err.Error())
+			PrintError("ERROR: %s", err.Error())
 			return err
 		}
 	}
@@ -79,7 +78,7 @@ func (db *Tx) MustQuery(sql string, params ...interface{}) *sql.Rows {
 	rows, err := db.Tx.Query(sql, params...)
 	if nil != err {
 		err = fmt.Errorf("%w: %s [%v]", err, sql, params)
-		log.Printf("ERROR: %s", err.Error())
+		PrintError("ERROR: %s", err.Error())
 		panic(err)
 	}
 	return rows
@@ -91,7 +90,7 @@ func (db *Tx) MustPrepare(sql string) *sql.Stmt {
 	qry, err := db.Tx.Prepare(sql)
 	if nil != err {
 		err = fmt.Errorf("%w: %s", err, sql)
-		log.Printf("ERROR: %s", err.Error())
+		PrintError("ERROR: %s", err.Error())
 		panic(err)
 	}
 	return qry
