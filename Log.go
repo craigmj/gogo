@@ -6,7 +6,7 @@ import (
 	`os`
 )
 
-func PrintError(f string, args... interface{}) {
+var PrintError = func(f string, args... interface{}) {
 	fmt.Fprintf(os.Stderr, f, args...)
 	log.Printf(f, args...)	
 }

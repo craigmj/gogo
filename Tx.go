@@ -12,6 +12,8 @@ type Tx struct {
 	*sql.Tx
 }
 
+// Exec executes the sql with the given params, returning a result and error, 
+// and logging to PrintError if there is an error.
 func (db *Tx) Exec(sql string, params ...interface{}) (sql.Result, error) {
 	res, err := db.Tx.Exec(sql, params...)
 	if nil!=err {
@@ -35,6 +37,31 @@ func (db *Tx) MustExec(sql string, params ...interface{}) {
 	}
 }
 
+// MustExecEach executes each statement in the arguments, and panics
+// if an error occurs on any.
+func (db *Tx) MustExecEach(sqlStatements ...string) {
+	if err := db.ExecEach(sqlStatements...); nil!=err {
+		panic(err)
+	}
+}
+
+// ExecEach executes each statement passed as an argument. Unlike ExecAll, it doesn't 
+// split the sql statement on some delimiter, but treats each statement as unique.
+func (db *Tx) ExecEach(sqlStatements ...string) error {
+	for _, s := range sqlStatements {
+		s = strings.TrimSpace(s)
+		if ``==s {
+			continue
+		}
+		if _, err := db.Tx.Exec(s); nil!=err {
+			err := fmt.Errorf("%w: %s", err, s)
+			PrintError("ERROR: %s", err.Error())
+			return err
+		}
+	}
+	return nil
+}
+
 // MustExecAll takes a string of SQL commands delimited with semi-colons.
 // It executes each command, failing if any command fails.
 // NB: See the commentary on ExecAll about having semi-colons inside your
@@ -46,6 +73,7 @@ func (db *Tx) MustExecAll(sql string) {
 	}
 }
 
+
 // ExecAll takes a string of SQL commands delimited with semi-colons.
 // It executes each command, returning an error if any command fails..
 // Note that ExecAll does a very simple string split on semi-colons,
@@ -56,20 +84,7 @@ func (db *Tx) MustExecAll(sql string) {
 func (db *Tx) ExecAll(sql string) error {
 	// Should actually try to parse this properly, but for now we'll leave
 	// like this.
-	parts := strings.Split(sql, ";")
-	for _, s := range parts {
-		s = strings.TrimSpace(s)
-		if 0 == len(s) {
-			continue
-		}
-		PrintError("Exec: %s", s)
-		if _, err := db.Tx.Exec(s); nil != err {
-			err = fmt.Errorf("%w: %s", err, s)
-			PrintError("ERROR: %s", err.Error())
-			return err
-		}
-	}
-	return nil
+	return db.ExecEach(strings.Split(sql, ";")...)
 }
 
 // MustQuery executes the given query against the db, but panics if it encounters an

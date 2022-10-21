@@ -138,9 +138,17 @@ func Rollback(db *sql.DB, destinationVersionString string, migrations []Migratio
 		return err
 	}
 
-	// Negative destinationVersions mean we rollback by a delta
+	// Negative destinationVersions mean we rollback to the 
+	// (-n)th last migration.
+	// This _used to_ roll back from the current db version, but that can cause
+	// issues if you're using this from the command line without thinking too 
+	// thoroughly. It's better to have -1 be an absolute number: the number of migrations
+	// defined -N
 	if 0 > destinationVersion {
-		destinationVersion = version + destinationVersion
+		// we need -1 here so that rollback 0, for e.g would take us to the
+		// latest db version
+		// -1 takes us to migration[len(migrations)-2]
+		destinationVersion = len(migrations) - 1 + destinationVersion
 		if 0 > destinationVersion {
 			return fmt.Errorf("Cannot rollback to negative version %d from current version %d", destinationVersion, version)
 		}
