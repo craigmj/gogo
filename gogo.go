@@ -148,9 +148,12 @@ func Rollback(db *sql.DB, destinationVersionString string, migrations []Migratio
 		// we need -1 here so that rollback 0, for e.g would take us to the
 		// latest db version
 		// -1 takes us to migration[len(migrations)-2]
-		destinationVersion = len(migrations) - 1 + destinationVersion
+		destinationVersion = len(migrations) + destinationVersion
 		if 0 > destinationVersion {
 			return fmt.Errorf("Cannot rollback to negative version %d from current version %d", destinationVersion, version)
+		}
+		if destinationVersion >= version {
+			return fmt.Errorf(`Cannot rollback to version %d - currently at version %d`, destinationVersion, version)
 		}
 	}
 
